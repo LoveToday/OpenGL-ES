@@ -94,7 +94,7 @@ int main(){
     glUniform1i(glGetUniformLocation(shader.shaderProgram, "ourTexture1"), 0);
     glUniform1i(glGetUniformLocation(shader.shaderProgram, "ourTexture2"), 1);
     
-    glActiveTexture(GL_TEXTURE0); //纹理单元0 默认是激活的
+    glActiveTexture(GL_TEXTURE0); //纹理单元0
     glBindTexture(GL_TEXTURE_2D, texture[0]);
     glActiveTexture(GL_TEXTURE1); //纹理单元1
     glBindTexture(GL_TEXTURE_2D, texture[1]);

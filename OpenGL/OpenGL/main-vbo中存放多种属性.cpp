@@ -9,16 +9,13 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <math.h>
-#include "Shader.hpp"
-#include "stb_image.h"
 using namespace std;
 
-
 float vertices[] = {
-    -0.5f, -0.5f, 0, 0, 0, //左下0
-    0.5f, -0.5f, 0, 1.0f, 0,  //右下1
-    -0.5f, 0.5f, 0, 0, 1.0f,  //左上2
-    0.5f, 0.5f, 0, 1.0f, 1.0f    //右上3
+    -0.5f, -0.5f, 0, 0.3f, 0.4f, 1.0f, //左下0
+    0.5f, -0.5f, 0, 0.3f, 0.4f, 1.0f,  //右下1
+    -0.5f, 0.5f, 0, 1.0f, 0.4f, 0.0f,  //左上2
+    0.5f, 0.5f, 0, 0.3f, 0.4f, 1.0f    //右上3
 };
 
 int vertextIndex[] = {
@@ -36,7 +33,25 @@ unsigned int VAOSet();
 /// unifrom 是解决的CPU到GPU的问题
 
 
+const char *vertexShaderSource = "#version 330 core\n"
+"layout (location = 0) in vec3 aPos;\n"
+"layout (location = 1) in vec3 myColor;\n"
+"out vec3 tempColor;\n"
+"void main()\n"
+"{\n"
+"gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+"tempColor = myColor;\n"
+"}\0";
 
+
+//片段着色器 in 和 out的传值
+const char *fragmentShaderSource = "#version 330 core\n"
+"out vec4 FragColor;\n"
+"in vec3 tempColor;\n"
+"void main()\n"
+"{\n"
+"FragColor = vec4(tempColor, 1);\n"
+"}\n\0";
 
 GLFWwindow *window;
 
@@ -50,54 +65,56 @@ int main(){
         return -1;
     }
     
-    /// 旋转 加载只有做垂直方向的旋转
-    stbi_set_flip_vertically_on_load(true);
+    int success;
+    char infoLog[512];
     
-    Shader shader = Shader();
+    /// 创建着色器对象
+    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    /// 源码与着色器对象绑定
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    /// 编译
+    glCompileShader(vertexShader);
     
-    /// 设置纹理渲染的方式
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    int width, height, channels;
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+    if(!success){
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        cout<<"ERROR: VertexShader Compile Fail"<<infoLog<<endl;
+    }
+    
+    /// 创建着色器对象
+    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    /// 源码与着色器对象绑定
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    /// 编译
+    glCompileShader(fragmentShader);
+    
+    //检查片段着色器是否编译成功
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+    if(!success){
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        cout<<"ERROR: FragmentShader Compile Fail"<<infoLog<<endl;
+    }
     
     
-    unsigned char *data;
+    //// 创建着色器程序
+    int shaderProgram = glCreateProgram();
+    /// 着色器放到程序里面
+    glAttachShader(shaderProgram, fragmentShader);
+    glAttachShader(shaderProgram, vertexShader);
+    glLinkProgram(shaderProgram);
+    
+    //检查着色器链接是否成功
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if(!success){
+        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        cout<<"ERROR: Shader Link Fail"<<infoLog<<endl;
+    }
+    
+    vertexMyColorLocation = glGetUniformLocation(shaderProgram, "myColor");
     
     
-    unsigned int texture[2];
-    glGenTextures(2, texture);
-    
-    /// 加载第一个纹理
-    glBindTexture(GL_TEXTURE_2D, texture[0]);
-    char filename[] = "/Users/chenjianglin/Documents/OpenGL-ES/OpenGL/OpenGL/test.jpg";
-    data = stbi_load(filename, &width, &height, &channels, 0);
-    /// 后面的参数是图源的格式 前面的目标属性、  将图片放到显存里面
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    // 多级渐远原理， 一系列的纹理图像，后一个纹理图像是前一个的二分之一
-    glGenerateMipmap(GL_TEXTURE_2D);
-    /// 用完了就释放
-    stbi_image_free(data);
-    /// 加载第二个纹理
-    glBindTexture(GL_TEXTURE_2D, texture[1]);
-    char filename1[] = "/Users/chenjianglin/Documents/OpenGL-ES/OpenGL/OpenGL/three.jpg";
-    data = stbi_load(filename1, &width, &height, &channels, 0);
-    /// 后面的参数是图源的格式 前面的目标属性、  将图片放到显存里面
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    // 多级渐远原理， 一系列的纹理图像，后一个纹理图像是前一个的二分之一
-    glGenerateMipmap(GL_TEXTURE_2D);
-    /// 用完了就释放
-    stbi_image_free(data);
-    
-    shader.useShader();
-    
-    /// 给texture赋值
-    glUniform1i(glGetUniformLocation(shader.shaderProgram, "ourTexture1"), 0);
-    glUniform1i(glGetUniformLocation(shader.shaderProgram, "ourTexture2"), 1);
-    
-    glActiveTexture(GL_TEXTURE0); //纹理单元0 默认是激活的
-    glBindTexture(GL_TEXTURE_2D, texture[0]);
-    glActiveTexture(GL_TEXTURE1); //纹理单元1
-    glBindTexture(GL_TEXTURE_2D, texture[1]);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
     
     unsigned int VAO = VAOSet();
     
@@ -116,13 +133,12 @@ int main(){
         // 颜色设置整个区域
         glClear(GL_COLOR_BUFFER_BIT);
         
-//        glUseProgram(shaderProgram);
-        
+        glUseProgram(shaderProgram);
         
         glBindVertexArray(VAO);
         
         /// 绘制三角形  从0开始 取三个点
-//        glDrawArrays(GL_TRIANGLES, 0, 3);
+//        glDrawArrays(GL_TRIANGLES, 0, 6);
         
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         
@@ -173,44 +189,35 @@ unsigned int VAOSet(){
     unsigned int VBO, VAO, EBO; // ID
     /// 生成一个VAO
     glGenVertexArrays(1, &VAO);
-    /// 生成两个VBO
+    /// 生成一个VBO
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &EBO);
     /// opengl 程序绑定起来
     glBindVertexArray(VAO);
-    
     // 绑定vbo
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    
     /// 绑定EBO
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    
-   
-    
-    
     /// 写值分配显存空间 创建显存  GL_STATIC_DRAW数据几乎没有改变
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertextIndex), vertextIndex, GL_STATIC_DRAW);
     
     /// 告诉 GPU内存的情况 值 的结构
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     /// 启用
     glEnableVertexAttribArray(0);
     
-    
-    
     /// 告诉 GPU内存的情况 值 的结构
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     /// 启用
     glEnableVertexAttribArray(1);
     
     
     
-//    glBindBuffer(GL_ARRAY_BUFFER, 0);
-//    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     
-//    glBindBuffer(GL_ARRAY_BUFFER, 1);
-//    glBindVertexArray(1);
+    glBindVertexArray(0);
     
     return VAO;
 }

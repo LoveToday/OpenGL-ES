@@ -10,15 +10,14 @@
 #include <iostream>
 #include <math.h>
 #include "Shader.hpp"
-#include "stb_image.h"
 using namespace std;
 
 
 float vertices[] = {
-    -0.5f, -0.5f, 0, 0, 0, //左下0
-    0.5f, -0.5f, 0, 1.0f, 0,  //右下1
-    -0.5f, 0.5f, 0, 0, 1.0f,  //左上2
-    0.5f, 0.5f, 0, 1.0f, 1.0f    //右上3
+    -0.5f, -0.5f, 0, 0.3f, 0.4f, 1.0f, //左下0
+    0.5f, -0.5f, 0, 0.3f, 0.4f, 1.0f,  //右下1
+    -0.5f, 0.5f, 0, 1.0f, 0.4f, 0.0f,  //左上2
+    0.5f, 0.5f, 0, 0.3f, 0.4f, 1.0f    //右上3
 };
 
 int vertextIndex[] = {
@@ -50,58 +49,11 @@ int main(){
         return -1;
     }
     
-    /// 旋转 加载只有做垂直方向的旋转
-    stbi_set_flip_vertically_on_load(true);
-    
     Shader shader = Shader();
-    
-    /// 设置纹理渲染的方式
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    int width, height, channels;
-    
-    
-    unsigned char *data;
-    
-    
-    unsigned int texture[2];
-    glGenTextures(2, texture);
-    
-    /// 加载第一个纹理
-    glBindTexture(GL_TEXTURE_2D, texture[0]);
-    char filename[] = "/Users/chenjianglin/Documents/OpenGL-ES/OpenGL/OpenGL/test.jpg";
-    data = stbi_load(filename, &width, &height, &channels, 0);
-    /// 后面的参数是图源的格式 前面的目标属性、  将图片放到显存里面
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    // 多级渐远原理， 一系列的纹理图像，后一个纹理图像是前一个的二分之一
-    glGenerateMipmap(GL_TEXTURE_2D);
-    /// 用完了就释放
-    stbi_image_free(data);
-    /// 加载第二个纹理
-    glBindTexture(GL_TEXTURE_2D, texture[1]);
-    char filename1[] = "/Users/chenjianglin/Documents/OpenGL-ES/OpenGL/OpenGL/three.jpg";
-    data = stbi_load(filename1, &width, &height, &channels, 0);
-    /// 后面的参数是图源的格式 前面的目标属性、  将图片放到显存里面
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    // 多级渐远原理， 一系列的纹理图像，后一个纹理图像是前一个的二分之一
-    glGenerateMipmap(GL_TEXTURE_2D);
-    /// 用完了就释放
-    stbi_image_free(data);
-    
-    shader.useShader();
-    
-    /// 给texture赋值
-    glUniform1i(glGetUniformLocation(shader.shaderProgram, "ourTexture1"), 0);
-    glUniform1i(glGetUniformLocation(shader.shaderProgram, "ourTexture2"), 1);
-    
-    glActiveTexture(GL_TEXTURE0); //纹理单元0 默认是激活的
-    glBindTexture(GL_TEXTURE_2D, texture[0]);
-    glActiveTexture(GL_TEXTURE1); //纹理单元1
-    glBindTexture(GL_TEXTURE_2D, texture[1]);
     
     unsigned int VAO = VAOSet();
     
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL /*GL_LINE*/);
+    glPolygonMode(GL_FRONT_AND_BACK, /*GL_FILL*/ GL_LINE);
     /// 渲染引擎
     while (!glfwWindowShouldClose(window)) {
         
@@ -117,12 +69,12 @@ int main(){
         glClear(GL_COLOR_BUFFER_BIT);
         
 //        glUseProgram(shaderProgram);
-        
+        shader.useShader();
         
         glBindVertexArray(VAO);
         
         /// 绘制三角形  从0开始 取三个点
-//        glDrawArrays(GL_TRIANGLES, 0, 3);
+//        glDrawArrays(GL_TRIANGLES, 0, 6);
         
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         
@@ -193,14 +145,14 @@ unsigned int VAOSet(){
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(vertextIndex), vertextIndex, GL_STATIC_DRAW);
     
     /// 告诉 GPU内存的情况 值 的结构
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     /// 启用
     glEnableVertexAttribArray(0);
     
     
     
     /// 告诉 GPU内存的情况 值 的结构
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     /// 启用
     glEnableVertexAttribArray(1);
     
